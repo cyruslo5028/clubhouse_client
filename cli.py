@@ -11,6 +11,7 @@ import sys
 import threading
 import configparser
 import keyboard
+from SwSpotify import spotify,SpotifyNotRunning, SpotifyPaused
 from rich.table import Table
 from rich.console import Console
 from clubhouse.clubhouse import Clubhouse
@@ -167,6 +168,8 @@ def chat_main(client):
     """
     max_limit = 80
     channel_speaker_permission = False
+    prev_song = None
+    prev_artist = None
     _wait_func = None
     _ping_func = None
 
@@ -209,19 +212,44 @@ def chat_main(client):
                 print("    Please re-join this channel to activate a permission.")
                 return False
         return True
-    
-    @set_interval(10)
-    def _wait_actionable_notification(client):
-        _notifications = client.get_actionable_notifications()
-        if _notifications['success']:
-            if(_notifications['count'] >0):
-                print("You got notification: ")
-                print(_notifications['notifications'])
+
+    @set_interval(5)
+    def _update_song_bio(client, m_bio ):
+        try:
+            song,artist = spotify.current()
+        except:
+            client.update_bio(m_bio)
+        else:
+            if(song != prev_song):
+                m_songname = "♫𝗡𝗼𝘄 𝗣𝗹𝗮𝘆𝗶𝗻𝗴: "+song+"\n♫𝗔𝗿𝘁𝗶𝘀𝘁: "+artist+"\n\n"
+                new_bio = m_songname + m_bio
+                prev_song = song
+                prev_artist = artist
+                client.update_bio(new_bio)
         return True
 
     while True:
         # Choose which channel to enter.
         # Join the talk on success.
+        m_bio = "【 𝑴𝒖𝒔𝒊𝒄 𝑪𝒉𝒂𝒏𝒏𝒆𝒍 ♫ 】__________________\n\
+如需點歌請IG inbox我\n\
+有可能我訓咗🙈\n\
+\n\
+【 𝕬𝖇𝖔𝖚𝖙 𝖒𝖊 】_________________________\n\
+🇭🇰 🄼🄰🄳🄴 🄸🄽 🄷🄾🄽🄶 🄺🄾🄽🄶\n\
+🇺🇸 𝐿𝒾𝓋𝒾𝓃𝑔 𝐼𝓃 𝐿𝑜𝓈 𝒜𝓃𝑔𝑒𝓁𝑒𝓈\n\
+📚UCI Computer Science📖\n\
+📐UCI HKSU Creative Director ✂️\n\
+💕Steffi Lai💕\n\
+\n\
+石⃣   灰⃣   粉⃣   宇⃣   宙⃣   最⃣   強⃣   大⃣   腦⃣\n\
+\n\
+【 𝕴𝖓𝖙𝖊𝖗𝖊𝖘𝖙𝖘 】_________________________\n\
+💻Backend Software Engineer\n\
+| PYTHON | JAVA | C++ |\n\
+| UNITY | GAMER | TWITCH |\n\
+| GUITAR | MAGIC | COFFEE |\n"
+        user_me = client.me()
         user_id = client.HEADERS.get("CH-UserID")
         print_channel_list(client, max_limit)
         lobby_command = input("[.] Create Room(c)/ Join Room(j)/ Quit(quit)? : ")
@@ -314,9 +342,9 @@ def chat_main(client):
                     _request_speaker_permission,
                     args=(client, channel_name, user_id)
                 )
-        
-        #Start thread for notification
-        _notification_func = _wait_actionable_notification(client)
+        spoti = input("Are you using spotify? (y/n)")
+        if(spoti == 'y'):
+            _spoti_func = _update_song_bio(client,m_bio)
 
         #Loop in the room
         while True:
@@ -423,8 +451,9 @@ def chat_main(client):
             _ping_func.set()
         if _wait_func:
             _wait_func.set()
-        if _notification_func:
-            _notification_func.set()
+        if _spoti_func:
+            _spoti_func.set()
+            client.update_bio(m_bio)
         if RTC:
             RTC.leaveChannel()
         client.leave_channel(channel_name)
