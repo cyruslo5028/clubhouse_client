@@ -214,7 +214,7 @@ def chat_main(client):
         return True
 
     @set_interval(5)
-    def _update_song_bio(client, m_bio ):
+    def _update_song_bio(client, m_bio, prev_song):
         try:
             song,artist = spotify.current()
         except:
@@ -224,7 +224,6 @@ def chat_main(client):
                 m_songname = "♫𝗡𝗼𝘄 𝗣𝗹𝗮𝘆𝗶𝗻𝗴: "+song+"\n♫𝗔𝗿𝘁𝗶𝘀𝘁: "+artist+"\n\n"
                 new_bio = m_songname + m_bio
                 prev_song = song
-                prev_artist = artist
                 client.update_bio(new_bio)
         return True
 
@@ -253,7 +252,7 @@ def chat_main(client):
         user_id = client.HEADERS.get("CH-UserID")
         print_channel_list(client, max_limit)
         lobby_command = input("[.] Create Room(c)/ Join Room(j)/ Quit(quit)? : ")
-
+        yes_no = ['y','n']
         if (lobby_command == 'j'):
             channel_name = input("[.] Enter channel_name: ")
             channel_info = client.join_channel(channel_name)
@@ -265,11 +264,21 @@ def chat_main(client):
                     continue
         elif (lobby_command == 'c'):
             channel_topic = input("[.] Enter the topic of the channel: ")
-            channel_info = client.create_channel(topic = channel_topic)
+            privacy_setting = input("[.] Private?(y/n): ")
+            while privacy_setting not in yes_no:
+                privacy_setting = input("[.] Error! Private?(y/n): ")
+            social_setting = input ("[.] Social?(y/n): ")
+            while social_setting not in yes_no:
+                social_setting = input("[.] Error! Social?(y/n): ")
+            if(privacy_setting == 'y'):
+                channel_info = client.create_channel(topic = channel_topic, is_private = True)
+            elif(social_setting == 'y'):
+                channel_info = client.create_channel(topic = channel_topic,is_social_mode=True)
+            else:    
+                channel_info = client.create_channel(topic = channel_topic)
             if not channel_info['success']:
                 print("[.] Error creating the channel.")
                 continue
-            print(channel_info)
             channel_name = channel_info['channel']
             channel_info = client.join_channel(channel_name)
             if not channel_info['success']:
@@ -282,7 +291,10 @@ def chat_main(client):
             break
         else:
             continue
-
+        # Set up thread to update bio with song and artist
+        spoti = input("Are you using spotify? (y/n)")
+        if(spoti == 'y'):
+            _spoti_func = _update_song_bio(client,m_bio,prev_song)
         # List currently available users (TOP 20 only.)
         # Also, check for the current user's speaker permission.
         channel_speaker_permission = False
@@ -342,10 +354,6 @@ def chat_main(client):
                     _request_speaker_permission,
                     args=(client, channel_name, user_id)
                 )
-        spoti = input("Are you using spotify? (y/n)")
-        if(spoti == 'y'):
-            _spoti_func = _update_song_bio(client,m_bio)
-
         #Loop in the room
         while True:
             #Prompt Input from user
