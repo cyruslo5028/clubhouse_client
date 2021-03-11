@@ -11,7 +11,8 @@ import sys
 import threading
 import configparser
 import keyboard
-from SwSpotify import spotify,SpotifyNotRunning, SpotifyPaused
+from SwSpotify import spotify,SpotifyNotRunning, SpotifyPaused #For spotify function
+from time import gmtime, strftime # Timestamp
 from rich.table import Table
 from rich.console import Console
 from clubhouse.clubhouse import Clubhouse
@@ -167,9 +168,8 @@ def chat_main(client):
     Main function for chat
     """
     max_limit = 80
-    channel_speaker_permission = False
     prev_song = None
-    prev_artist = None
+    channel_speaker_permission = False
     _wait_func = None
     _ping_func = None
 
@@ -189,7 +189,11 @@ def chat_main(client):
 
         Continue to ping alive every 30 seconds.
         """
-        client.active_ping(channel_name)
+        try:
+            client.active_ping(channel_name)
+        except:
+            time = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+            print("["+time+"]"+" Error in _ping_keep_alive occur.")
         return True
 
     @set_interval(10)
@@ -213,7 +217,7 @@ def chat_main(client):
                 return False
         return True
 
-    @set_interval(5)
+    @set_interval(1)
     def _update_song_bio(client, m_bio, prev_song):
         try:
             song,artist = spotify.current()
@@ -221,16 +225,45 @@ def chat_main(client):
             client.update_bio(m_bio)
         else:
             if(song != prev_song):
-                m_songname = "♫𝗡𝗼𝘄 𝗣𝗹𝗮𝘆𝗶𝗻𝗴: "+song+"\n♫𝗔𝗿𝘁𝗶𝘀𝘁: "+artist+"\n\n"
+                m_songname = "♫𝗡𝗼𝘄 𝗣𝗹𝗮𝘆𝗶𝗻𝗴: "+song+"\n♫𝗔𝗿𝘁𝗶𝘀𝘁: "+artist+"\n如果個Now playing無update可以refresh多幾次\n\n"
                 new_bio = m_songname + m_bio
-                prev_song = song
-                client.update_bio(new_bio)
+                try:
+                    client.update_bio(new_bio)
+                    prev_song = song
+                except:
+                    time = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+                    print("["+time+"]"+" Error updating bio.")
+                    print("Song Name: "+song+"\nArtist: "+artist)
+
         return True
 
     while True:
         # Choose which channel to enter.
         # Join the talk on success.
-        m_bio = ""
+        m_bio = (
+                    "【 𝑴𝒖𝒔𝒊𝒄 𝑪𝒉𝒂𝒏𝒏𝒆𝒍 ♫ 】__________________\n"
+                    "🎼每日播放不用類型音樂\n"
+                    "🎧有歌曲建議可以IG DM\n"
+                    "\n"
+                    "【 👨🏻‍💻 𝓒𝓞𝓓𝓔 𝓑𝓡𝓔𝓦 ☕️】________________\n"
+                    "💻開房研究Leetcode題\n"
+                    "📱招齊朋友Code Small Project\n"
+                    "\n"
+                    "【 𝕬𝖇𝖔𝖚𝖙 𝖒𝖊 】_________________________\n"
+                    "🇭🇰 🄼🄰🄳🄴 🄸🄽 🄷🄾🄽🄶 🄺🄾🄽🄶\n"
+                    "🇺🇸 𝐿𝒾𝓋𝒾𝓃𝑔 𝐼𝓃 𝐿𝑜𝓈 𝒜𝓃𝑔𝑒𝓁𝑒𝓈\n"
+                    "📚UCI Computer Science📖\n"
+                    "📐UCI HKSU Creative Director ✂️\n"
+                    "💕Steffi Lai💕\n"
+                    "\n"
+                    "石⃣   灰⃣   粉⃣   宇⃣   宙⃣   最⃣   強⃣   大⃣   腦⃣\n"
+                    "\n"
+                    "【 𝕴𝖓𝖙𝖊𝖗𝖊𝖘𝖙𝖘 】_________________________\n"
+                    "💻ʙᴀᴄᴋᴇɴᴅ ꜱᴏꜰᴛᴡᴀʀᴇ ᴇɴɢɪɴᴇᴇʀ\n"
+                    "| PYTHON | JAVA | C++ |\n"
+                    "| UNITY | GAMER | TWITCH |\n"
+                    "| GUITAR | MAGIC | COFFEE |\n"
+                )
         user_me = client.me()
         user_id = client.HEADERS.get("CH-UserID")
         print_channel_list(client, max_limit)
@@ -247,6 +280,7 @@ def chat_main(client):
                     continue
         elif (lobby_command == 'c'):
             channel_topic = input("[.] Enter the topic of the channel: ")
+            channel_info = None
             privacy_setting = input("[.] Private?(y/n): ")
             while privacy_setting not in yes_no:
                 privacy_setting = input("[.] Error! Private?(y/n): ")
