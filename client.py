@@ -3,7 +3,10 @@ client.py
 
 Modify from https://github.com/stypr/clubhouse-py
 
-Recreated by: Cyrus Lo
+Modify by: Cyrus Lo
+
+This client won't support registering a new account
+Please use a Apple device to register.
 """
 import os
 import sys
@@ -19,12 +22,15 @@ from clubhouse.clubhouse import Clubhouse
 
 class client:
     def __init__(self):
-        #Set Up Voice
-        rtc = self.setup_rtc()
-        
+        self.rtc = self.setup_rtc()
+        self.client = self.check_auth()
 
         
-    # Set Up Voice    
+    '''
+    Set Up Rtc:
+    return the RTC on success
+    return None on Fail
+    '''
     def setup_rtc(self):
         try:
             rtc = agorartc.createRtcEngineBridge()
@@ -33,32 +39,75 @@ class client:
             rtc.initialize(Clubhouse.AGORA_KEY, None, agorartc.AREA_CODE_GLOB & 0xFFFFFFFE) #exclude Chinese server
             # Enhance Voice Quality
             if rtc.setAudioProfile(
-                agorartc.AUDIO_PROFILE_MUSIC_HIGH_QUALITY_STEREO,
-                agorartc.AUDIO_SCENARIO_GAME_STREAMING
-            ) < 0:
-            #if setAudioProfile return -1 -> Error
-            print("Error While setting up the audio profile")
+                    agorartc.AUDIO_PROFILE_MUSIC_HIGH_QUALITY_STEREO,
+                    agorartc.AUDIO_SCENARIO_GAME_STREAMING
+                ) < 0:
+                print("> ! Error while setting up the audio profile !")
             return rtc
         except:
             rtc = None
             return rtc
-            
-    # Main Loop
+
+
+    def user_authentication(self):
+        client = Clubhouse()
+        # get phone number for register
+        while True:
+            phone_num = input("Please enter your phone number. (+12345678900/+85212345678) :")
+            result = client.start_phone_number_auth(phone_num)
+            if result['success'] == False:
+                print("Invalid phone number. Please try again.")
+                continue
+            else:
+                break
+        # get sms verification code
+        while True:
+            sms_code = input("Please enter the SMS verification code :")
+            result = client.complete_phone_number_auth(phone_num,sms_code)
+            if result['success'] == False:
+                print("Wrong SMS Code. Please try again.")
+                continue
+            else:
+                break
+        
+        # On success
+        user_id = result['user_profile']['user_id']
+        user_token = result['auth_token']
+        user_device = client.HEADERS.get("CH-DeviceId")
+        self.write_config(user_id, user_token, user_device)
+
+        print("Successfully wrote to the config file.")
+
+    
+    # Check if user register
     def check_auth(self):
-        user_config = read_config()
+        user_config = self.read_config()
         user_id = user_config.get('user_id')
+        user_token = user_config.get('user_token')
+        user_device = user_config.get('user_device')
         # User is authenticated
         if user_id != None:
-            client = Clubhouse(user_id = user_id, user_token = user_config.get(user_token), user_device=user_config.get(user_device))
+            client = Clubhouse(
+                user_id=user_id,
+                user_token=user_token,
+                user_device=user_device
+            )
             _check = client.check_waitlist_status()
+            #User are on the waitlist
             if _check['is_waitlisted']:
-                print("You are still on waitlist.")
-                return
+                print("> You are still on waitlist.")
+                return None
             _check = client.me()
-            _check['user_profile'].get("username"):
-            
+            if not _check['user_profile'].get("username"):
+                print("> You havent signed up yet.")
+                return None
+            return client
         # Not authenticated
         else:
+            print("Check auth")
+            self.user_authentication()
+            client = self.check_auth()
+            return client
 
     # Write to config (Delete setting.ini if failed to login)
     def write_config(self,user_id, user_token, user_device, filename='setting.ini'):
@@ -71,9 +120,10 @@ class client:
         with open(filename, 'w') as config_file:
             config.write(config_file)
         return True
-
-    # Read from the config file
-    # If Account exist, return the dict, else return empty dict
+    '''
+    Read from the config file
+    If Account exist, return the dict, else return empty dict
+    '''
     def read_config(self, filename = 'setting.ini'):
         config = configparser.ConfigParser()
         config.read(filename)
@@ -81,7 +131,9 @@ class client:
             return dict(config['Account'])
         return dict()
 
-    # Print the list of current user
+    '''
+    Print Channel List
+    '''
     def print_channel_list (self,client,max_limit):
         console = Console()
         table = Table(show_header=True, header_style="bold magenta")

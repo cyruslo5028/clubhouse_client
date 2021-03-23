@@ -1,3 +1,5 @@
 keyboard
 requests
 rich
+SwSpotify
+agora-python-sdk
