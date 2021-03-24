@@ -26,12 +26,12 @@ class client:
         self.client = self.check_auth()
 
         
-    '''
-    Set Up Rtc:
-    return the RTC on success
-    return None on Fail
-    '''
     def setup_rtc(self):
+        '''
+        Set Up Rtc:
+        return the RTC on success
+        return None on Fail
+        '''
         try:
             rtc = agorartc.createRtcEngineBridge()
             eventHandler = agorartc.RtcEngineEventHandlerBase()
@@ -48,8 +48,12 @@ class client:
             rtc = None
             return rtc
 
-
     def user_authentication(self):
+        '''
+        Auth the user
+        Prompt to ask for phone number and SMS
+        write all the info to the config
+        '''
         client = Clubhouse()
         # get phone number for register
         while True:
@@ -78,9 +82,12 @@ class client:
 
         print("Successfully wrote to the config file.")
 
-    
-    # Check if user register
     def check_auth(self):
+        '''
+        Check if the user is authenticated
+        return a clubhouse client
+        return None on error
+        '''
         user_config = self.read_config()
         user_id = user_config.get('user_id')
         user_token = user_config.get('user_token')
@@ -109,8 +116,14 @@ class client:
             client = self.check_auth()
             return client
 
-    # Write to config (Delete setting.ini if failed to login)
     def write_config(self,user_id, user_token, user_device, filename='setting.ini'):
+        '''
+        Write 
+        user_id -> str 
+        user_token -> str
+        user_device ->str 
+        to setting.ini
+        '''
         config = configparser.ConfigParser()
         config["Account"] = {
             "user_device": user_device,
@@ -120,21 +133,24 @@ class client:
         with open(filename, 'w') as config_file:
             config.write(config_file)
         return True
-    '''
-    Read from the config file
-    If Account exist, return the dict, else return empty dict
-    '''
+
     def read_config(self, filename = 'setting.ini'):
+        '''
+        Read from setting.ini
+        If Account exist, return the dict, else return empty dictionary
+        '''
         config = configparser.ConfigParser()
         config.read(filename)
         if "Account" in config:
             return dict(config['Account'])
         return dict()
 
-    '''
-    Print Channel List
-    '''
     def print_channel_list (self,client,max_limit):
+        '''
+        Print Channel List
+        client -> clubhouse()
+        max_limit -> int (number of room to print)
+        '''
         console = Console()
         table = Table(show_header=True, header_style="bold magenta")
         table.add_column("")
@@ -159,8 +175,11 @@ class client:
             )
         console.print(table)
 
-    # For threading
     def set_interval(self,interval):
+        '''
+        This function for threading
+        interval -> int (seconds)
+        '''
         def decorator(func):
             def wrap(*args, **kwargs):
                 stopped = threading.Event()
@@ -176,11 +195,22 @@ class client:
             return wrap
         return decorator
 
+    def _request_speaker_permission(self,channel_name, user_id):
+        '''
+        request for the speaker permission
+        '''
+        pass
+
+    '''
+    Main Client Loop
+    '''
+    def run(self):
+
 
 if __name__ == "__main__":
     try:
         client = client()
-
+        client.run()
     except Exception:
         # Remove dump files on exit.
         file_list = os.listdir(".")
