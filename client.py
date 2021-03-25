@@ -24,8 +24,17 @@ class client:
     def __init__(self):
         self.rtc = self.setup_rtc()
         self.client = self.check_auth()
+        self.channel_speaker_permission = False
+        self._wait_func = None
+        self._ping_func = None
+        self._bio = None
+        self._prev_song = None #For spotify function
+        self._user_id = None
+        self._channel_name = None
+        self._channel_info = None
+        self.max_limit = 50
+        self.yes_no = ['y','n']
 
-        
     def setup_rtc(self):
         '''
         Set Up Rtc:
@@ -145,7 +154,7 @@ class client:
             return dict(config['Account'])
         return dict()
 
-    def print_channel_list (self,client,max_limit):
+    def print_channel_list (self):
         '''
         Print Channel List
         client -> clubhouse()
@@ -158,11 +167,11 @@ class client:
         table.add_column("topic")
         table.add_column("speaker_count")
         table.add_column("total_count")
-        channels = client.get_channels()['channels']
+        channels = self.client.get_channels()['channels']
         i = 0
         for channel in channels:
             i += 1
-            if i > max_limit:
+            if i > self.max_limit:
                 break
             _option = ""
             _option += "\xEE\x85\x84" if channel['is_social_mode'] or channel['is_private'] else ""
@@ -195,17 +204,138 @@ class client:
             return wrap
         return decorator
 
-    def _request_speaker_permission(self,channel_name, user_id):
+    def _request_speaker_permission(self):
         '''
         request for the speaker permission
+        Start thread for _wait_speaker_permission function
         '''
-        pass
+        if not self.channel_speaker_permission:
+            self.client.audience_reply(self._channel_name,True,False)
+            self._wait_func = self._wait_speaker_permission(self._channel_name,self.user_id)
+            print("> You have raised your hand. Waiting for the moderator to give you the permission.")
 
-    '''
-    Main Client Loop
-    '''
+    def join_room(self):
+        '''
+        process join room
+        channel name -> str (e.g. MR35Dy96)
+        channel_info -> json 
+        return true on success
+        '''
+        self._channel_name = input("> Enter Channel Name: ")
+        try:
+            self._channel_info = self.client.join_channel(self._channel_name)
+            if not self._channel_info['success']:
+                self._channel_info = self.client.join_channel(self._channel_name,"link","e30=")
+                if not self._channel_info['success']:
+                    print("> Error joining the channel.")
+                    self._channel_info = None
+                    self._channel_name = None
+                    return False
+            return True
+        except:
+            print("> ! Critical Error Occured While Joining Room.")
+            self._channel_info = None
+            self._channel_name = None
+            return False
+
+    def create_room(self):
+        '''
+        Create Room
+        return True on success
+        '''
+        topic = input("> Enter the topic for the channel: ")
+        try:
+            private = input("> Private Room?(y/n): ")
+            while private not in self.yes_no:
+                private = input("> Error! Private Room?(y/n): ")
+            if(private == 'y'):
+                self._channel_info = self.client.create_channel(topic = topic, is_private = True)
+            social = input("> Social Room?(y/n): ")
+            
+        except:
+            print("> ! Critical Error Occured While Creating Room.")
+            self._channel_info = None
+            self._channel_name = None
+            return False
+
+    @self.set_interval(10)
+    def _wait_speaker_permission(self):
+        try:
+            channel_info = self.client.get_channel(self._channel_name)
+            if channel_info['success']: #successfully fetch channel info
+                for user in channel_info['users']:
+                    if user['user_id'] != self.user_id:
+                        u_id = user['user_id']
+                        break
+                res_inv = self.client.accept_invite(self._channel_name, u_id)
+                if res_inv['success']:
+                    print("> You now have permission.\n> Please re-join this channel to activate a permission.")
+                    return False
+            return True
+                    
+        except:
+            time = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+            print("["+time+"]"+" Error in _wait_speaker_permission occur.")
+
+    @self.set_interval(30)
+    def _ping_keep_alive(self):
+        try:
+            self.client.active_ping(self._channel_name)
+        except:
+            time = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+            print("["+time+"]"+" Error in _ping_keep_alive occur.")
+        return True   
+
+    @self.set_interval(3)
+    def _update_song_bio(self, m_bio):
+        try:
+            song, artist = spotify.current()
+        except:
+            # Spotify not running / The song is paused
+            pass
+        else:
+            if(song != self._prev_song):
+                m_songname = "♫𝗡𝗼𝘄 𝗣𝗹𝗮𝘆𝗶𝗻𝗴: "+song+"\n♫𝗔𝗿𝘁𝗶𝘀𝘁: "+artist+"\n如果個Now playing無update可以refresh多幾次\n\n"
+                new_bio = m_songname + m_bio
+                try:
+                    self.client.update_bio(new_bio)
+                    self._prev_song = song
+                except:
+                    #Error may occur if json has bad request
+                    time = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+                    print("["+time+"]"+" Error updating bio.")
+                    print("Song Name: "+song+"\nArtist: "+artist)
+        return True
+
     def run(self):
+        if self.client == None:
+            print("User not Authorized. ABORTED")
+            return
+        user_me = self.client.me()
+        self._bio = user_me['bio']
+        self._user_id = self.client.HEADERS.get("CH-UserID")
+        while True:
+            self.print_channel_list()
+            lobby_command = input("[.] Create Room(c)/ Join Room(j)/ Quit(quit)? : ")
+            # Join Room
+            if(lobby_command == 'j'):
+                if not self.join_room():
+                    continue
+            # Create Room
+            elif(lobby_command == 'c'):
+                if not self.create_room():
+                    continue
+            elif(lobby_command == 'quit'):
+                break
+            else:
+                continue
+            '''
+            At this point, self._channel_name and self._channel_info should not be None
+            '''
 
+
+        
+        
 
 if __name__ == "__main__":
     try:
